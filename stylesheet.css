@@ -1,0 +1,92 @@
+.skosmos-widget-bibbikatalog .error {
+    color: #8b0000;
+    font-style: italic;
+    padding-left: 15px;
+}
+
+.skosmos-widget-bibbikatalog .bibbi-item-list,
+.skosmos-widget-bibbikatalog .bibbi-item-detail,
+.skosmos-widget-bibbikatalog .loading,
+.skosmos-widget-bibbikatalog .error {
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: scroll;
+    background: white;
+}
+
+.bibbi-item-list {
+    display: grid;
+    column-gap: 0;
+    row-gap: 0;
+    grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 500px) {
+    .bibbi-item-list { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 1000px) {
+    .bibbi-item-list { grid-template-columns: repeat(4, 1fr); }
+}
+
+.bibbi-item-list .item {
+    justify-self: stretch;
+    align-self: stretch;
+    text-align: center;
+}
+
+.bibbi-item-list .item a {
+    width: 100%;
+    display: block;
+    padding: 5px;
+}
+.bibbi-item-list .item a:hover {
+    text-decoration: none;
+    background: rgba(200,200,210,0.3);
+}
+.bibbi-item-list .item img {
+    max-width: 100%;
+    display: inline-block;
+    height: 140px;
+    border: 1px solid #eee;
+    box-shadow: 1px 1px 1px #777;
+}
+
+
+.bibbi-item-list .item.film_dvd img {
+    height: 120px;
+}
+
+.bibbi-item-list .title {
+    font-size: 110%;
+}
+.bibbi-item-list .creator_year {
+    font-size: 100%;
+}
+
+.bibbi-item-list .item.film .doc_type::before {
+    content: '🎞️';
+}
+.bibbi-item-list .item.spill .doc_type::before {
+    content: '🎮 ';
+}
+
+.bibbi-item-list .not_approved {
+    color: #aaa;
+}
+
+.person::before {
+    content: '👤';
+}
+.organization::before {
+    content: '🏢'; // or 👥 ?
+}
+.work::before {
+    content: '📖';
+}
+.place::before {
+    content: '🌐';
+}
+.generic::before {
+    content: '🏷️';
+}

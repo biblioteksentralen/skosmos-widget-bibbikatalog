@@ -1,0 +1,6 @@
+{
+    "js": ["widget.js"],
+    "css": ["stylesheet.css"],
+    "templates": ["template.html"],
+    "callback": ["bibbiKatalogWidget"]
+}

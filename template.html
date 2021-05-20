@@ -1,0 +1,91 @@
+<div class="skosmos-widget-bibbikatalog">
+    <h3>
+        Bruk i Bibbi-katalogen
+        {{#if total_docs}}
+            ({{ total_docs }})
+        {{/if}}
+    </h3>
+    {{#if loading}}
+        <div class="loading">Tøyeblikk...</div>
+    {{else if error}}
+        <div class="error">{{error}}</div>
+    {{else}}
+        {{#if doc}}
+            <div class="bibbi-item-detail">
+                <a href="#" class="back-link">« Tilbake</a>
+                <h3>{{ doc.title }} /
+                    {{#if doc.main_creator}}
+                        {{doc.main_creator.label}}
+                        {{#if doc.main_creator.role}}
+                            ({{ doc.main_creator_role }})
+                        {{/if}}
+                    {{/if}}.
+                    {{doc.pub_place}} :
+                    {{doc.publisher}},
+                    {{doc.pub_year}}
+                </h3>
+                <p>
+                    {{doc.doc_type}}<br>
+                    EAN/ISBN: {{doc.ean }}
+                </p>
+
+                <p>
+                    {{#each doc.authorities}}
+                        <div class="{{ classname }}">
+                            {{#if is_creator}}
+                                <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
+                                {{#if role}}
+                                    ({{ role }})
+                                {{/if}}
+                            {{else}}
+                                <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a> ({{ type }})
+                            {{/if}}
+                        </div>
+                    {{/each}}
+                </p>
+
+                <p>
+                    {{#if doc.ean}}
+                    <a href="https://lds.bs.no/api/redirect-to-micromarc/{{doc.ean}}">Vis i Mikromarc</a> |
+                    <a href="http://bibsys-almaprimo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlSearch.do?vid=BIBSYS&institution=BIBSYS&query=any,contains,{{doc.ean}}">Søk i Oria</a>
+                    {{else}}
+                    (Mangler EAN/ISBN)
+                    {{/if}}
+                </p>
+
+            </div>
+        {{else}}
+            {{#each groups}}
+                <div class="bibbi-item-list">
+                    {{#if ../total_docs}}
+                        {{#each docs}}
+                            <div class="item {{ doc_type_class }}">
+
+                                <a href="https://lds.bs.no/api/redirect-to-micromarc/{{ean}}" data-bibbi-id="{{ id }}">
+
+                                    <img alt="Omslagsbilde" src="{{image}}">
+                                    <div class="title">
+                                        {{title}}
+                                    </div>
+                                    <div class="creator_year">
+                                        {{#if main_creator}}
+                                            {{main_creator.label}}
+                                            {{#if main_creator.role}}
+                                                ({{ main_creator_role }})
+                                            {{/if}}
+                                        {{/if}}
+                                        {{pub_year}}
+                                    </div>
+                                    <small class="doc_type">{{doc_type_simple}}</small>
+                                </a>
+
+                            </div>
+                        {{/each}}
+                    {{else}}
+                        <em class="text-muted">Ingen dokumenter</em>
+                    {{/if}}
+                </div>
+            {{/each}}
+        {{/if}}
+    {{/if}}
+</div>
