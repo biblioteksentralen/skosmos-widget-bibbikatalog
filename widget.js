@@ -85,7 +85,7 @@ BIBBI = {
                             };
                         })();
 
-                        doc.image = `https://pim.bibsent.no/thumbs/ImageImport/97/230/362/${doc.ean}.jpg`;
+                        doc.image = `https://media.aja.bs.no/assets/?ean=${doc.ean}&asset_type=cover&variant=thumbnail.jpg`;
 
                         doc.doc_type_simple = (() => {
                             if (doc.doc_type && doc.doc_type.match(/bok/i)) {
