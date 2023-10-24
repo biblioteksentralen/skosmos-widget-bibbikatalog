@@ -21,6 +21,26 @@
     grid-template-columns: repeat(2, 1fr);
 }
 
+ul.manifestations {
+    padding: 0;
+    margin: 0;
+}
+ul.manifestations li {
+    font-size: 100%;
+    display: flex;
+    flex: 1 1 auto;
+}
+
+.manifestations img {
+    max-width: 100%;
+    display: block;
+    height: 100px;
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+    box-shadow: 1px 1px 1px #777;
+margin-right: 1em;
+}
+
 @media (min-width: 500px) {
     .bibbi-item-list { grid-template-columns: repeat(3, 1fr); }
 }
@@ -75,6 +95,10 @@
     color: #aaa;
 }
 
+.authorityLink {
+    display: inline-block;
+    margin: 0 .3em;
+}
 .person::before {
     content: '👤';
 }
@@ -87,6 +111,6 @@
 .place::before {
     content: '🌐';
 }
-.generic::before {
+.topic::before {
     content: '🏷️';
 }
