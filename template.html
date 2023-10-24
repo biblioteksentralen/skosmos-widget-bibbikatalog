@@ -1,8 +1,8 @@
 <div class="skosmos-widget-bibbikatalog">
     <h3>
         Bruk i Bibbi-katalogen
-        {{#if total_docs}}
-            ({{ total_docs }})
+        {{#if totalWorks}}
+            ({{ totalWorks }})
         {{/if}}
     </h3>
     {{#if loading}}
@@ -10,79 +10,140 @@
     {{else if error}}
         <div class="error">{{error}}</div>
     {{else}}
-        {{#if doc}}
+        {{#if selectedWork}}
             <div class="bibbi-item-detail">
                 <a href="#" class="back-link">« Tilbake</a>
-                <h3>{{ doc.title }} /
-                    {{#if doc.main_creator}}
-                        {{doc.main_creator.label}}
-                        {{#if doc.main_creator.role}}
-                            ({{ doc.main_creator_role }})
+                <h3>{{ selectedWork.title }} /
+                    {{#if selectedWork.mainCreator}}
+                        {{selectedWork.mainCreator.label}}
+                        {{#if selectedWork.mainCreator.role}}
+                            ({{ selectedWork.mainCreator.role }})
                         {{/if}}
-                    {{/if}}.
-                    {{doc.pub_place}} :
-                    {{doc.publisher}},
-                    {{doc.pub_year}}
+                    {{/if}}
+                    {{selectedWork.workYear}}
                 </h3>
-                <p>
-                    {{doc.doc_type}}<br>
-                    EAN/ISBN: {{doc.ean }}
-                </p>
 
-                <p>
-                    {{#each doc.authorities}}
-                        <div class="{{ classname }}">
-                            {{#if is_creator}}
-                                <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
-                                {{#if role}}
-                                    ({{ role }})
-                                {{/if}}
-                            {{else}}
-                                <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a> ({{ type }})
+                <div style="margin: 0.8em 0">
+                    Bidragsytere (verk):
+                    {{#each selectedWork.contributors}}
+                        <div class="authorityLink {{ classname }}">
+                            <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
+                            {{#if role}}
+                                ({{ role }})
                             {{/if}}
                         </div>
                     {{/each}}
-                </p>
+                </div>
 
-                <p>
-                    {{#if doc.ean}}
-                    <a href="https://lds.bs.no/api/redirect-to-micromarc/{{doc.ean}}">Vis i Mikromarc</a> |
-                    <a href="http://bibsys-almaprimo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlSearch.do?vid=BIBSYS&institution=BIBSYS&query=any,contains,{{doc.ean}}">Søk i Oria</a>
-                    {{else}}
-                    (Mangler EAN/ISBN)
-                    {{/if}}
-                </p>
+                <div style="margin: 0.8em 0">
+                    Emne:
+                    {{#each selectedWork.subjects}}
+                        <div class="authorityLink {{ classname }}">
+                            <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
+                        </div>
+                    {{/each}}
+                </div>
+
+                <div style="margin: 0.8em 0">
+                    Form/sjanger:
+                    {{#each selectedWork.genres}}
+                        <div class="authorityLink {{ classname }}">
+                            <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
+                        </div>
+                    {{/each}}
+                </div>
+                <div>
+                    <strong>Manifestasjoner:</strong>
+                    <ul class="manifestations">
+                    {{#each selectedWork.manifestations}}
+                        <li>
+                            <img alt="Omslagsbilde" src="{{coverImage}}">
+                            <div>
+                                <em>{{ title }}</em>
+                                {{#if statementOfResponsibility}}
+                                    . {{ statementOfResponsibility }}
+                                {{/if}}
+
+                                {{#if publicationYear}}
+                                    {{#if statementOfResponsibility}}
+                                        ,
+                                    {{/if}}
+                                    {{ publicationYear }}
+                                {{/if}}
+                                <br />
+
+                                {{#if documentType}}
+                                    {{ documentType }}.
+                                {{/if}}
+
+                                {{#if bibbiId}}
+                                    Bibbi-ID {{ bibbiId }}
+                                {{/if}}
+                                {{#if isbn}}
+                                    ISBN {{ isbn }}
+                                {{/if}}
+                                {{#if ean}}
+                                    EAN {{ ean }}
+                                {{/if}}
+                                <br />
+                                {{#if contributors.length}}
+                                    Bidragsytere (uttrykk og manifestasjon):
+                                    {{#each contributors}}
+                                        <div class="authorityLink {{ classname }}">
+                                            <a href="/entity?uri=https://id.bs.no/bibbi/{{ id }}">{{ label }}</a>
+                                            {{#if role}}
+                                                ({{ role }})
+                                            {{/if}}
+                                        </div>
+                                    {{/each}}
+                                {{/if}}
+
+
+                                <p>
+                                    {{#if isbn}}
+                                    <!--
+                                    <a href="https://lds.bs.no/api/redirect-to-micromarc/{{isbn}}" style="font-size: 100%">Vis i Mikromarc</a> |-->
+                                    <a href="http://bibsys-almaprimo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlSearch.do?vid=BIBSYS&institution=BIBSYS&query=any,contains,{{isbn}}" style="font-size: 100%">Søk i Oria</a>
+                                    {{/if}}
+                                </p>
+                            </div>
+                        </li>
+                    {{/each}}
+                </ul>
+                </div>
+
 
             </div>
         {{else}}
             {{#each groups}}
                 <div class="bibbi-item-list">
-                    {{#if ../total_docs}}
-                        {{#each docs}}
+                    {{#if ../totalWorks}}
+                        {{#each works}}
                             <div class="item {{ doc_type_class }}">
 
-                                <a href="https://lds.bs.no/api/redirect-to-micromarc/{{ean}}" data-bibbi-id="{{ id }}">
+                                <a href="#" data-bibbi-id="{{ id }}">
 
-                                    <img alt="Omslagsbilde" src="{{image}}">
+                                    <img alt="Omslagsbilde" src="{{coverImage}}">
                                     <div class="title">
                                         {{title}}
                                     </div>
                                     <div class="creator_year">
-                                        {{#if main_creator}}
-                                            {{main_creator.label}}
-                                            {{#if main_creator.role}}
-                                                ({{ main_creator_role }})
+                                        {{#if mainCreator}}
+                                            {{mainCreator.label}}
+                                            {{#if mainCreator.isbn}}
+                                                ({{ mainCreator.role }})
                                             {{/if}}
                                         {{/if}}
-                                        {{pub_year}}
+                                        {{workYear}}
                                     </div>
-                                    <small class="doc_type">{{doc_type_simple}}</small>
+                                    <!--
+                                    <small class="doc_type">{{doc_type_simple}}</small>-->
                                 </a>
 
                             </div>
                         {{/each}}
                     {{else}}
-                        <em class="text-muted">Ingen dokumenter</em>
+                        <em class="text-muted">Ingen verk (Autoriteten kan være brukt på dokumenter som ikke er verkifisert enda)</em>
                     {{/if}}
                 </div>
             {{/each}}

@@ -1,178 +1,228 @@
 // declaring a namespace for the plugin
 var BIBBI = BIBBI || {};
 
+function formatIsbdTitle(title, parallelTitles) {
+  const { mainTitle, subtitle, partNumber, partTitle } = title ?? {};
+  return (
+    mainTitle +
+    (subtitle ? ` : ${subtitle}` : "") +
+    (partNumber ? `. ${partNumber}` : "") +
+    (partTitle ? `. ${partTitle}` : "") +
+    (parallelTitles ?? []).map(
+      (parallelTitle) =>
+        " = " +
+        parallelTitle.mainTitle +
+        (parallelTitle.subtitle ? ` : ${parallelTitle.subtitle}` : "") +
+        (parallelTitle.partNumber ? `. ${parallelTitle.partNumber}` : "") +
+        (parallelTitle.partTitle ? `. ${parallelTitle.partTitle}` : "")
+    )
+  );
+}
+
+const parsePublicationYear = (publicationYear) =>
+  parseInt(publicationYear ?? "") || 0;
+
+const sortByPublicationYearDesc = (manifestations) =>
+  manifestations.sort(
+    (a, b) =>
+      parsePublicationYear(b.publicationYear) -
+      parsePublicationYear(a.publicationYear)
+  );
+
+const getFirstWorkPublicationYear = (work) =>
+  parsePublicationYear(
+    sortByPublicationYearDesc(
+      work.expressions.flatMap(({ manifestations }) => manifestations)
+    )[0]?.publicationYear
+  );
+
+const getWorkYearOrFirstPublicationYear = (work) =>
+  work.workYear ?? getFirstWorkPublicationYear(work);
+
+const mapContributor = (contributor) => ({
+  id: contributor.agent.id,
+  label: contributor.agent.name.nb,
+  role: contributor.roles.map((role) => role.label).join(", "),
+  classname: contributor.agent.type.toLowerCase(),
+  isMainContributor: contributor.isMainContributor,
+});
+
 BIBBI = {
-    endpoint: "https://lds.bs.no/api/catalog",
+  endpoint: "https://search.data.bs.no/api/v1/search/works",
 
-    cache: {},
+  cache: {},
 
-    listContext: {},
+  listContext: {},
 
-    query: function (uri) {
-        // const url = `${this.endpoint}?uri=` + encodeURIComponent(uri);
+  query: function (uri) {
+    this.render({
+      loading: true,
+    });
 
-        const url = `${this.endpoint}?limit=100&q=authorities.id:` + encodeURIComponent(uri.split('/').pop());
+    $.ajax({
+      url: this.endpoint,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Client-Identifier": "Vokabulartjenesten/Skosmos (drift@bibsent.no)",
+      },
+      data: JSON.stringify({
+        query: `bibbiAuthorityId:${uri.split("/").pop()}`,
+        size: 100,
+      }),
+    })
+      .fail((err) => {
+        this.render({
+          error:
+            "Kan ikke vise resultater fra Bibbi katalog akkurat nå på grunn av en feil.",
+        });
+      })
+      .done((res) => {
+        console.info("Request successful", res);
 
-        console.log('> ' + url);
+        const total = res.total;
+
+        // const skipRoles = ["manusforf.", "skuesp.", "overs.", "regissør"];
+        // const sortOrder = ["genre", "topic", "creator"];
+
+        const works = res.works
+          .map((work) => {
+            const contributors = work.contributors.map(mapContributor);
+
+            const mainCreator = contributors.find(
+              (contributor) => contributor.isMainContributor
+            );
+
+            const subjects = work.subjects.map((authority) => ({
+              id: authority.id,
+              label: authority.name.nb,
+              classname: authority.focus?.type?.toLowerCase() ?? "topic",
+            }));
+
+            const genres = work.genres.map((authority) => ({
+              id: authority.id,
+              label: authority.name.nb,
+              classname: "genre",
+            }));
+
+            const title = formatIsbdTitle(work.title, []);
+
+            const manifestations = work.expressions
+              .flatMap((expression) =>
+                expression.manifestations.map((manifestation) => ({
+                  coverImage: manifestation.coverImage,
+                  title: formatIsbdTitle(
+                    manifestation.title,
+                    manifestation.parallelTitles
+                  ),
+                  publicationYear: parsePublicationYear(
+                    manifestation.publicationYear
+                  ),
+                  bibbiId: manifestation.identifiers.bibbiId,
+                  isbn: manifestation.isbn ?? [],
+                  ean: manifestation.ean ?? [],
+                  statementOfResponsibility:
+                    manifestation.statementOfResponsibility,
+                  documentType: manifestation.documentType?.format,
+
+                  contributors: [
+                    ...(expression.contributors ?? []),
+                    ...(manifestation.contributors ?? []),
+                  ].map(mapContributor),
+                }))
+              )
+              .sort(
+                (work1, work2) => work2.publicationYear - work1.publicationYear
+              );
+
+            const images = manifestations
+              .map((manifestation) => manifestation.coverImage)
+              .filter((url) => typeof url === "string");
+
+            return {
+              id: work.id,
+              mainCreator,
+              title,
+              coverImage: images[0],
+              workYear: work.workYear,
+              workYearOrFirstPublicationYear:
+                getWorkYearOrFirstPublicationYear(work),
+              contributors,
+              subjects,
+              genres,
+              manifestations,
+            };
+          })
+          .sort(
+            (work1, work2) =>
+              work2.workYearOrFirstPublicationYear -
+              work1.workYearOrFirstPublicationYear
+          );
+
+        works.forEach((work) => {
+          this.cache[work.id] = work;
+        });
+
+        console.log("Works", works);
+
+        const groups = [
+          {
+            heading: "Bruk i Bibbi-katalogen",
+            works: works,
+            totalWorks: total,
+          }, // (1) Make it work...
+        ];
+
+        this.listContext = {
+          uri: uri,
+          groups: groups,
+          totalWorks: total,
+        };
+
+        this.render(this.listContext);
+      });
+  },
+
+  render: function (context) {
+    console.info("Render");
+    const source = $("#skosmos-widget-bibbikatalog-template").html();
+    const template = Handlebars.compile(source);
+    const rendered = template(context);
+    if ($(".skosmos-widget-bibbikatalog").length) {
+      $(".skosmos-widget-bibbikatalog").replaceWith(rendered);
+    } else {
+      $(".content").append(rendered);
+    }
+
+    // Add click handlers
+    $(".skosmos-widget-bibbikatalog a.back-link").on("click", (evt) => {
+      evt.preventDefault();
+      this.render(this.listContext);
+    });
+
+    $(".skosmos-widget-bibbikatalog a").on("click", (evt) => {
+      const bibbiId = $(evt.currentTarget).data("bibbi-id");
+      if (bibbiId) {
+        const selectedWork = this.cache[bibbiId];
+        console.log("View work", selectedWork, this);
+        evt.preventDefault();
 
         this.render({
-            loading: true,
+          selectedWork: selectedWork,
+          totalWorks: this.listContext.totalWorks,
         });
-
-        $.getJSON(url)
-            .fail(err => {
-                this.render({
-                    error: 'Kan ikke vise resultater fra Bibbi katalog akkurat nå på grunn av en feil.',
-                });
-            })
-            .done(res => {
-                console.info("Request successful", res);
-
-                const total = res.total;
-
-                const skipRoles = [
-                    'manusforf.',
-                    'skuesp.',
-                    'overs.',
-                    'regissør',
-                ];
-
-                const sortOrder = [
-                    'genre',
-                    'topic',
-                    'creator',
-
-                ];
-
-                const docs = res.docs
-                    .map(doc => {
-                        let creators = doc.authorities.filter(aut => aut.type === 'creator' && (!aut.role || skipRoles.indexOf(aut.role) === -1));
-
-                        doc.authorities.sort((a,b ) => {
-                            return sortOrder.indexOf(b.type) - sortOrder.indexOf(a.type) ;
-                        });
-
-                        doc.authorities.map(aut => {
-                            aut.label = aut.label.replace(/\$z/, ' : ');
-                            aut.is_creator = (aut.type == 'creator');
-                            aut.classname = (() => {
-                                if (aut.type === 'creator') {
-                                    if (aut.is_person) {
-                                        return 'person';
-                                    }
-                                    return 'organization';
-                                }
-                                if (aut.type === 'place') {
-                                    return 'place';
-                                }
-                                return 'generic';
-                            })();
-                        });
-
-                        doc.main_creator = (() => {
-                            if (!creators.length) {
-                                return null;
-                            }
-                            let label = creators[0].label || '';
-                            let role = creators[0].role || '';
-                            if (role === 'forf.') {
-                                role = null;
-                            }
-                            return {
-                                label: label.split(':')[0],
-                                role: role,
-                                id: creators[0].id,
-                            };
-                        })();
-
-                        doc.image = `https://media.aja.bs.no/assets/?ean=${doc.ean}&asset_type=cover&variant=thumbnail.jpg`;
-
-                        doc.doc_type_simple = (() => {
-                            if (doc.doc_type && doc.doc_type.match(/bok/i)) {
-                                return null;
-                            }
-                            return doc.doc_type;
-                        })();
-
-                        doc.doc_type_class = (() => {
-                            if (!doc.doc_type) {
-                                return '';
-                            }
-                            if (doc.doc_type.match(/dataspill/i)) {
-                                return 'spill';
-                            }
-                            if (doc.doc_type.match(/film/i)) {
-                                return 'film';
-                            }
-                            return '';
-                        })();
-
-                        return doc;
-                    })
-                    .sort((doc1, doc2) => doc2.pub_year - doc1.pub_year);
-
-                docs.forEach(doc => {
-                    this.cache[doc.id] = doc;
-                });
-
-                const groups = [
-                    {heading: 'Bruk i Bibbi-katalogen', docs: docs, total_docs: total} // (1) Make it work...
-                ];
-
-                this.listContext = {
-                    uri: uri,
-                    groups: groups,
-                    total_docs: total,
-                };
-
-                this.render(this.listContext);
-            });
-    },
-
-	render: function(context) {
-        console.info('Render');
-        const source = $("#skosmos-widget-bibbikatalog-template").html();
-        const template = Handlebars.compile(source);
-        const rendered = template(context);
-        if ($('.skosmos-widget-bibbikatalog').length) {
-            $('.skosmos-widget-bibbikatalog').replaceWith(rendered);
-        } else {
-            $('.content').append(rendered);
-        }
-
-        // Add click handlers
-        $('.skosmos-widget-bibbikatalog a.back-link').on('click', (evt) => {
-            console.log('CLICK BACK', evt);
-            evt.preventDefault();
-            this.render(this.listContext);
-        });
-
-        $('.skosmos-widget-bibbikatalog a').on('click', (evt) => {
-            console.log('CLICK', evt);
-            const bibbiId = $(evt.currentTarget).data('bibbi-id');
-            if (bibbiId) {
-                const doc = this.cache[bibbiId];
-                console.log('View doc', doc, this);
-                evt.preventDefault();
-
-                this.render({
-                    doc: doc,
-                    total_docs: this.listContext.total_docs,
-                });
-            }
-
-        });
-    },
-
+      }
+    });
+  },
 };
 
-$(function() {
-	// Called on page load
-	window.bibbiKatalogWidget = function(data) {
-        // Only activating the widget when on a concept page and there is a prefLabel.
-        if (data.page !== 'page' || data.prefLabels === undefined) {
-            return;
-        }
-        BIBBI.query(data.uri)
-	};
+$(function () {
+  // Called on page load
+  window.bibbiKatalogWidget = function (data) {
+    // Only activating the widget when on a concept page and there is a prefLabel.
+    if (data.page !== "page" || data.prefLabels === undefined) {
+      return;
+    }
+    BIBBI.query(data.uri);
+  };
 });
