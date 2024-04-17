@@ -42,13 +42,13 @@ const getWorkYearOrFirstPublicationYear = (work) =>
 const mapContributor = (contributor) => ({
   id: contributor.agent.id,
   label: contributor.agent.name.nb,
-  role: contributor.roles.map((role) => role.label).join(", "),
+  role: contributor.roles.map((role) => role.label.nb).join(", "),
   classname: contributor.agent.type.toLowerCase(),
   isMainContributor: contributor.isMainContributor,
 });
 
 BIBBI = {
-  endpoint: "https://search.data.bs.no/api/v1/search/works",
+  endpoint: "https://search.data.bs.no/cordata/global/api/work/search",
 
   cache: {},
 
@@ -59,17 +59,18 @@ BIBBI = {
       loading: true,
     });
 
+    const params = new URLSearchParams();
+    params.set("filter[bmdb.bibbiAuthorityId]", uri.split("/").pop());
+    params.set("size", "100");
+    params.set("version", "0.6.1");
+
     $.ajax({
-      url: this.endpoint,
-      method: "POST",
+      url: `${this.endpoint}?${params.toString()}`,
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Client-Identifier": "Vokabulartjenesten/Skosmos (drift@bibsent.no)",
       },
-      data: JSON.stringify({
-        query: `bibbiAuthorityId:${uri.split("/").pop()}`,
-        size: 100,
-      }),
     })
       .fail((err) => {
         this.render({
@@ -85,8 +86,9 @@ BIBBI = {
         // const skipRoles = ["manusforf.", "skuesp.", "overs.", "regissør"];
         // const sortOrder = ["genre", "topic", "creator"];
 
-        const works = res.works
-          .map((work) => {
+        const works = res.results
+          .map((result) => {
+            const work = result.work;
             const contributors = work.contributors.map(mapContributor);
 
             const mainCreator = contributors.find(
@@ -169,14 +171,14 @@ BIBBI = {
           {
             heading: "Bruk i Bibbi-katalogen",
             works: works,
-            totalWorks: total,
+            totalWorks: works.length,
           }, // (1) Make it work...
         ];
 
         this.listContext = {
           uri: uri,
           groups: groups,
-          totalWorks: total,
+          totalWorks: works.length,
         };
 
         this.render(this.listContext);
