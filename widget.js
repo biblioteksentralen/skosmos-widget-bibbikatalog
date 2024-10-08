@@ -55,17 +55,16 @@ BIBBI = {
   listContext: {},
 
   query: function (uri) {
+
+    const bibbiAuthorityId = uri.split("/").pop();
+    if (!bibbiAuthorityId) return;
+
     this.render({
       loading: true,
     });
 
-    const params = new URLSearchParams();
-    params.set("filter[bmdb.bibbiAuthorityId]", uri.split("/").pop());
-    params.set("size", "100");
-    params.set("version", "0.6.1");
-
     $.ajax({
-      url: `${this.endpoint}?${params.toString()}`,
+      url: `${this.endpoint}?filter[bmdb.bibbiAuthorityId]=${bibbiAuthorityId}&size=100&version=0.6.1`,
       method: "GET",
       headers: {
         "Content-Type": "application/json",
