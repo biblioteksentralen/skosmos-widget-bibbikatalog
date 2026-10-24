@@ -1,0 +1,12 @@
+{
+  "name": "skosmos-widget-bibbikatalog",
+  "private": true,
+  "description": "Skosmos plugin showing works from the Bibbi catalog. Only the type check uses npm; Skosmos loads widget.js as is.",
+  "scripts": {
+    "check": "tsc"
+  },
+  "devDependencies": {
+    "@biblioteksentralen/bmdb-search": "^0.0.0-beta.74",
+    "typescript": "^7.0.2"
+  }
+}
