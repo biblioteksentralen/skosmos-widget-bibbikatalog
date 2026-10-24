@@ -4,6 +4,13 @@
 // Data comes from the BMDB search API (https://search.bmdb.no/cordata/v1/) through bmdb_proxy in vokabulartjenesten,
 // which holds the API credentials. The list uses work summaries, and opening a work fetches the full work.
 
+/**
+ * Types from the BMDB search API, checked with `npm run check`
+ * @typedef {import("@biblioteksentralen/bmdb-search/v1").BmdbCordataApiV1Schemas} Schemas
+ * @typedef {Schemas["WorkSummary"]} WorkSummary
+ * @typedef {Schemas["Work"]} Work
+ */
+
 const BIBBI_VOCAB_ID = "bibbi";
 const BMDB_WORKS_ENDPOINT = "/bmdb/works";
 
@@ -43,15 +50,19 @@ const mapContributor = ({ agent, roles, isMainContributor }) => ({
 });
 
 // Work summary from /bmdb/works?authority=…
+/** @param {WorkSummary} work */
 const mapWorkSummary = (work) => ({
   id: work.id,
   // Music works can have a uniform title without mainTitle
-  title: formatIsbdTitle(work.workTitle?.mainTitle ? work.workTitle : work.representation.title),
+  title: formatIsbdTitle(
+    work.workTitle && "mainTitle" in work.workTitle ? work.workTitle : work.representation.title
+  ),
   coverImage: work.representation.coverImage,
   creator: work.contributors[0] ? localized(work.contributors[0].agent.name) : "",
 });
 
 // Full work from /bmdb/works/{id}
+/** @param {Work} work */
 const mapWork = (work) => {
   const contributors = work.contributors.map(mapContributor);
 
@@ -228,6 +239,7 @@ const BIBBI = {
     });
 
     widget.querySelectorAll("a[data-work-id]").forEach((link) => {
+      if (!(link instanceof HTMLAnchorElement)) return;
       link.addEventListener("click", (evt) => {
         evt.preventDefault();
         this.openWork(link.dataset.workId);

@@ -1,0 +1,16 @@
+{
+  // Type-checks widget.js against the BMDB API types from @biblioteksentralen/bmdb-search (npm run check)
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    // Only the functions taking API data are annotated; types flow from there into their callbacks
+    "noImplicitAny": false,
+    "module": "nodenext",
+    "target": "es2022",
+    "lib": ["es2022", "dom"],
+    "skipLibCheck": true
+  },
+  "include": ["widget.js", "globals.d.ts"]
+}
