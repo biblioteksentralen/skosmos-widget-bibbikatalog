@@ -1,4 +1,4 @@
-// Skosmos 3 plugin showing works from the Bibbi catalog that use the current authority.
+// Skosmos 3 plugin showing works in BMDB that use the current authority as subject.
 // Skosmos calls window.bibbiKatalogWidget on page load and after each partial concept page load.
 //
 // Data comes from the BMDB search API (https://search.bmdb.no/cordata/v1/) through bmdb_proxy in vokabulartjenesten,
@@ -44,7 +44,7 @@ const mapContributor = ({ agent, roles, isMainContributor }) => ({
   isMainContributor,
 });
 
-// Work summary from /bmdb/works?authority=…
+// Work summary from /bmdb/works?subject=…
 const mapWorkSummary = (work) => ({
   id: work.id,
   // Music works can have a uniform title without mainTitle
@@ -178,7 +178,7 @@ const renderWorkList = (works, truncated) =>
         </div>`
         )
         .join("")}</div>${truncated
-        ? `<p class="text-muted">Viser de 100 nyeste verkene for hver måte autoriteten er brukt på (som bidragsyter, emne, sjanger eller form).</p>`
+        ? `<p class="text-muted">Viser de 100 nyeste verkene.</p>`
         : ""}`
     : `<div class="bibbi-item-list"><em class="text-muted">Ingen verk (Autoriteten kan være brukt på dokumenter som ikke er verkifisert enda)</em></div>`;
 
@@ -190,7 +190,7 @@ const fetchJson = async (url) => {
   return response.json();
 };
 
-const ERROR_MESSAGE = "Kan ikke vise resultater fra Bibbi katalog akkurat nå på grunn av en feil.";
+const ERROR_MESSAGE = "Kan ikke vise resultater fra BMDB akkurat nå på grunn av en feil.";
 
 const BIBBI = {
   works: [],
@@ -208,7 +208,7 @@ const BIBBI = {
     const mainContent = document.getElementById("main-content");
     if (!mainContent) return;
 
-    const heading = `Bruk i Bibbi-katalogen${this.works.length ? ` (${this.works.length})` : ""}`;
+    const heading = `Bruk i BMDB som emne${this.works.length ? ` (${this.works.length})` : ""}`;
     let body;
     if (state.loading) {
       body = `<div class="loading">Tøyeblikk...</div>`;
@@ -251,7 +251,7 @@ const BIBBI = {
 
     try {
       const res = await fetchJson(
-        `${BMDB_WORKS_ENDPOINT}?${new URLSearchParams({ authority: bibbiAuthorityId })}`
+        `${BMDB_WORKS_ENDPOINT}?${new URLSearchParams({ subject: bibbiAuthorityId })}`
       );
       if (requestId !== this.requestId) return;
 
