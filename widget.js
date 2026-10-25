@@ -3,10 +3,18 @@
 //
 // Data comes from the BMDB search API (https://search.bmdb.no/cordata/v1/) through bmdb_proxy in vokabulartjenesten,
 // which holds the API credentials. The list uses work summaries, and opening a work fetches the full work.
+//
+// BMDB doesn't index the subjects themselves, only their components. So on a subject page, the widget lists the works
+// that have all the components of the subject as subjects. On a component page, it lists the works that use the
+// component as creator, subject, genre or form.
 
-// The Bibbi subjects and their components (concepts, places, events and agents)
-const BIBBI_VOCAB_IDS = ["bibbi", "bibbi-components"];
+const SUBJECTS_VOCAB_ID = "bibbi";
+const COMPONENTS_VOCAB_ID = "bibbi-components";
 const BMDB_WORKS_ENDPOINT = "/bmdb/works";
+const BIBBI_URI_PREFIX = "https://id.bs.no/bibbi/";
+const BMDB_WORK_URI_PREFIX = "https://id.nb.no/resource/work/bmdb:";
+const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const MADS_COMPONENT_LIST = "http://www.loc.gov/mads/rdf/v1#componentList";
 
 // Labels are strings in work summaries and { nb, nn } objects in full works
 const localized = (value) =>
@@ -163,8 +171,14 @@ const renderWorkDetail = (work) => `
     </div>
   </div>`;
 
-const renderWorkList = (works, truncated) =>
-  works.length
+// The component list doesn't say which components are hidden in the heading, and BMDB doesn't say which subject of a
+// work a component belongs to
+const SUBJECT_SEARCH_NOTE = `<p class="text-muted">Viser verk som har alle komponentene i emnet som emner, også
+  komponenter som er skjult i emneoverskriften. Komponentene kan høre til ulike emner på verket.</p>`;
+
+const renderWorkList = (works, truncated, isSubject) =>
+  (isSubject ? SUBJECT_SEARCH_NOTE : "") +
+  (works.length
     ? `<div class="bibbi-item-list">${works
         .map(
           (work) => `
@@ -177,9 +191,11 @@ const renderWorkList = (works, truncated) =>
         </div>`
         )
         .join("")}</div>${truncated
-        ? `<p class="text-muted">Viser de 100 nyeste verkene for hver måte autoriteten er brukt på (som bidragsyter, emne, sjanger eller form).</p>`
+        ? isSubject
+          ? `<p class="text-muted">Viser de 100 nyeste verkene.</p>`
+          : `<p class="text-muted">Viser de 100 nyeste verkene for hver måte autoriteten er brukt på (som bidragsyter, emne, sjanger eller form).</p>`
         : ""}`
-    : `<div class="bibbi-item-list"><em class="text-muted">Ingen verk (Autoriteten kan være brukt på dokumenter som ikke er verkifisert enda)</em></div>`;
+    : `<div class="bibbi-item-list"><em class="text-muted">Ingen verk (Autoriteten kan være brukt på dokumenter som ikke er verkifisert enda)</em></div>`);
 
 const fetchJson = async (url) => {
   const response = await fetch(url);
@@ -189,11 +205,30 @@ const fetchJson = async (url) => {
   return response.json();
 };
 
+// IDs for the BMDB search API of the components of a subject, in heading order: Bibbi authority IDs, or BMDB IDs for
+// works. Read from the subject's mads:componentList in the Skosmos REST API.
+const fetchComponentIds = async (uri) => {
+  const params = new URLSearchParams({ uri, format: "application/ld+json" });
+  const { graph = [] } = await fetchJson(`rest/v1/${SUBJECTS_VOCAB_ID}/data?${params}`);
+  const nodes = new Map(graph.map((node) => [node.uri, node]));
+  const ids = [];
+  let listNode = nodes.get(nodes.get(uri)?.[MADS_COMPONENT_LIST]?.uri);
+  while (listNode) {
+    const item = listNode[`${RDF}first`]?.uri ?? "";
+    if (item.startsWith(BIBBI_URI_PREFIX)) ids.push(item.slice(BIBBI_URI_PREFIX.length));
+    if (item.startsWith(BMDB_WORK_URI_PREFIX)) ids.push(item.slice(BMDB_WORK_URI_PREFIX.length));
+    listNode = nodes.get(listNode[`${RDF}rest`]?.uri);
+  }
+  return ids;
+};
+
 const ERROR_MESSAGE = "Kan ikke vise resultater fra Bibbi katalog akkurat nå på grunn av en feil.";
 
 const BIBBI = {
   works: [],
   truncated: false,
+  // Whether the current concept is a subject, whose works are found through its components
+  isSubject: false,
   // Full works by ID, fetched when a work is opened
   fullWorks: new Map(),
   // Incremented for each query so that responses for a previous concept are ignored
@@ -216,7 +251,7 @@ const BIBBI = {
     } else if (state.selectedWork) {
       body = renderWorkDetail(state.selectedWork);
     } else {
-      body = renderWorkList(this.works, this.truncated);
+      body = renderWorkList(this.works, this.truncated, this.isSubject);
     }
 
     const widget = document.createElement("div");
@@ -239,19 +274,30 @@ const BIBBI = {
     mainContent.after(widget);
   },
 
-  async query(uri) {
+  async query(uri, isSubject) {
     const bibbiAuthorityId = uri.split("/").pop();
     if (!bibbiAuthorityId) return;
 
     const requestId = ++this.requestId;
     this.works = [];
     this.truncated = false;
+    this.isSubject = isSubject;
     this.render({ loading: true });
 
     try {
-      const res = await fetchJson(
-        `${BMDB_WORKS_ENDPOINT}?${new URLSearchParams({ authority: bibbiAuthorityId })}`
-      );
+      let params;
+      if (isSubject) {
+        const componentIds = await fetchComponentIds(uri);
+        if (requestId !== this.requestId) return;
+        if (!componentIds.length) {
+          this.render({});
+          return;
+        }
+        params = { subjects: componentIds.join(",") };
+      } else {
+        params = { authority: bibbiAuthorityId };
+      }
+      const res = await fetchJson(`${BMDB_WORKS_ENDPOINT}?${new URLSearchParams(params)}`);
       if (requestId !== this.requestId) return;
 
       this.works = res.works.map(mapWorkSummary);
@@ -286,7 +332,7 @@ const BIBBI = {
 window.bibbiKatalogWidget = function (data) {
   // Only activate the widget on Bibbi concept pages with a prefLabel.
   if (
-    !BIBBI_VOCAB_IDS.includes(window.SKOSMOS.vocab) ||
+    ![SUBJECTS_VOCAB_ID, COMPONENTS_VOCAB_ID].includes(window.SKOSMOS.vocab) ||
     data.pageType !== "concept" ||
     !data.uri ||
     !data.prefLabels
@@ -295,5 +341,5 @@ window.bibbiKatalogWidget = function (data) {
     BIBBI.removeWidget();
     return;
   }
-  BIBBI.query(data.uri);
+  BIBBI.query(data.uri, window.SKOSMOS.vocab === SUBJECTS_VOCAB_ID);
 };
