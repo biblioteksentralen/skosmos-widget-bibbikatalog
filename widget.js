@@ -4,7 +4,8 @@
 // Data comes from the BMDB search API (https://search.bmdb.no/cordata/v1/) through bmdb_proxy in vokabulartjenesten,
 // which holds the API credentials. The list uses work summaries, and opening a work fetches the full work.
 
-const BIBBI_VOCAB_ID = "bibbi";
+// The Bibbi subjects and their components (concepts, places, events and agents)
+const BIBBI_VOCAB_IDS = ["bibbi", "bibbi-components"];
 const BMDB_WORKS_ENDPOINT = "/bmdb/works";
 
 // Labels are strings in work summaries and { nb, nn } objects in full works
@@ -285,7 +286,7 @@ const BIBBI = {
 window.bibbiKatalogWidget = function (data) {
   // Only activate the widget on Bibbi concept pages with a prefLabel.
   if (
-    window.SKOSMOS.vocab !== BIBBI_VOCAB_ID ||
+    !BIBBI_VOCAB_IDS.includes(window.SKOSMOS.vocab) ||
     data.pageType !== "concept" ||
     !data.uri ||
     !data.prefLabels
